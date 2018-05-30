@@ -1,17 +1,21 @@
 const { Readable, Transform, Writable } = require('stream');
 
-const inStream = new Readable({
-  objectMode: true,
 
-  read(size) {
-    this.push(this.curr++);
+function ingestArray(arr=[]) {
 
-    if (this.curr > 20) {
-      this.push(null);
+  return new Readable({
+    objectMode: true,
+
+    read(size) {
+      if (arr.length === 0) {
+        // Notifies the end of reading stream
+        return this.push(null);
+      }
+      // The call of this.push triggers the execution of next read()
+      this.push(arr.shift());
     }
-  }
-});
-inStream.curr = 1;
+  });
+}
 
 
 const removeEven = new Transform({
@@ -27,25 +31,33 @@ const removeEven = new Transform({
 });
 
 
-let arr = [];
-const aggregateThree = new Writable({
-  objectMode: true,
 
-  write(chunk, encoding, callback) {
-    if (arr.length < 3) {
-      arr.push(chunk);
-    } else {
+function aggregateBy(num) {
+  let arr = [];
+
+  return new Writable({
+    objectMode: true,
+
+    write(chunk, encoding, callback) {
+      if (arr.length < num) {
+        // Adds to array if arry is shorter than specified length
+        arr.push(chunk);
+      } else {
+        // Writes to console if array's length reaches the specified value
+        console.log(arr);
+
+        // Re-initialize array with current chunk
+        arr = [chunk];
+      }
+      callback();
+    },
+
+    final(callback) {
       console.log(arr);
-      arr = [chunk];
+      callback();
     }
-    callback();
-  },
-
-  final(callback) {
-    console.log(arr);
-    callback();
-  }
-});
+  });
+}
 
 
 const objectToString = new Transform({
@@ -57,7 +69,12 @@ const objectToString = new Transform({
   }
 });
 
-inStream
+const testArr = []
+for (let i = 0; i < 20; i++) {
+  testArr.push(i);
+}
+
+ingestArray(testArr)
     .pipe(removeEven)
-    .pipe(aggregateThree);
+    .pipe(aggregateBy(3));
     // .pipe(process.stdout);
